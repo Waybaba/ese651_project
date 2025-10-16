@@ -147,7 +147,34 @@ class PPO:
             _,  # rnd_state_batch - not used anymore
         ) in generator:
             # TODO ----- START -----
-            # Implement the PPO update step
+            # Dummy PPO implementation - just for testing environment
+            # Compute current policy outputs
+            current_values = self.actor_critic.evaluate(critic_observations)
+            current_actions = self.actor_critic.act(observations)
+            current_log_probs = self.actor_critic.get_actions_log_prob(sampled_actions)
+            
+            # Simple policy loss (not clipped - just for testing)
+            policy_loss = -torch.mean(current_log_probs * advantage_estimates)
+            
+            # Simple value loss (not clipped - just for testing)
+            value_loss = torch.mean((current_values - value_targets) ** 2)
+            
+            # Simple entropy loss
+            entropy_loss = -torch.mean(current_log_probs)
+            
+            # Total loss
+            total_loss = policy_loss + self.value_loss_coef * value_loss + self.entropy_coef * entropy_loss
+            
+            # Backward pass
+            self.optimizer.zero_grad()
+            total_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
+            self.optimizer.step()
+            
+            # Accumulate losses for logging
+            mean_value_loss += value_loss.item()
+            mean_surrogate_loss += policy_loss.item()
+            mean_entropy += entropy_loss.item()
             # TODO ----- END -----
 
         num_updates = self.num_learning_epochs * self.num_mini_batches

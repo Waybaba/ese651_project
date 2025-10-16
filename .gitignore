@@ -12,7 +12,6 @@
 
 # IDE
 **/.idea/
-**/.vscode/
 
 # RL-Games
 **/runs/*

@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Drone Racing",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/rsl_rl/train_race.py",
+            "args": [
+                "--task", "Isaac-Quadcopter-Race-v0",
+                "--num_envs", "128",
+                "--max_iterations", "10",
+                // "--headless"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "DISPLAY": ":1"
+            }
+        }
+    ]
+}
