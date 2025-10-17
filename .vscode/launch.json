@@ -10,7 +10,8 @@
                 "--task", "Isaac-Quadcopter-Race-v0",
                 "--num_envs", "128",
                 "--max_iterations", "10",
-                // "--headless"
+                "--headless",
+                "--logger", "wandb"
             ],
             "env": {
                 "PYTHONPATH": "${workspaceFolder}",
