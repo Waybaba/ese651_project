@@ -17,5 +17,4 @@ cd IsaacLab_ese651
 $HOME/Documents/IsaacLab_install/IsaacLab_ese651/isaaclab.sh --install none
 
 
-pip install GitPython tensordict wandb
-
+pip install GitPython tensordict wandb rootutils

@@ -7,21 +7,27 @@
 
 """Launch Isaac Sim Simulator first."""
 
+import rootutils
 import sys
-import os
-local_rsl_path = os.path.abspath("src/third_parties/rsl_rl_local")
-if os.path.exists(local_rsl_path):
-    sys.path.insert(0, local_rsl_path)
-    print(f"[INFO] Using local rsl_rl from: {local_rsl_path}")
-else:
-    print(f"[WARNING] Local rsl_rl not found at: {local_rsl_path}")
+
+# Setup rootutils to find project root and add to Python path
+root = rootutils.setup_root(
+    search_from=__file__,
+    indicator="pyproject.toml",
+    pythonpath=True,
+    cwd=True,
+)
+
+# Add local rsl_rl to path (needed for internal rsl_rl module dependencies)
+sys.path.insert(0, str(root / "src" / "third_parties" / "rsl_rl_local"))
+
 
 import argparse
 
 from isaaclab.app import AppLauncher
 
 # local imports
-import cli_args  # isort: skip
+from scripts.rsl_rl import cli_args  # isort: skip
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Train an RL agent with RSL-RL.")
@@ -52,7 +58,7 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import torch
 
-from rsl_rl.runners import OnPolicyRunner
+from src.third_parties.rsl_rl_local.rsl_rl.runners import OnPolicyRunner
 
 from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from isaaclab.utils.dict import print_dict
@@ -78,8 +84,7 @@ def main():
     )
 
     # specify directory for logging experiments
-    log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
-    log_root_path = os.path.abspath(log_root_path)
+    log_root_path = root / "logs" / "rsl_rl" / agent_cfg.experiment_name
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
     resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
     log_dir = os.path.dirname(resume_path)
@@ -110,7 +115,7 @@ def main():
     # wrap for video recording
     if args_cli.video:
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "play"),
+            "video_folder": str(log_dir / "videos" / "play"),
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
@@ -131,7 +136,7 @@ def main():
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
 
     # export policy to onnx/jit
-    export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
+    export_model_dir = log_dir / "exported"
     export_policy_as_jit(
         ppo_runner.alg.actor_critic, ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.pt"
     )

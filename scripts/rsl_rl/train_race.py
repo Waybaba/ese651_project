@@ -7,20 +7,25 @@
 
 """Launch Isaac Sim Simulator first."""
 
+import rootutils
 import sys
-import os
 
-local_rsl_path = os.path.abspath("src/third_parties/rsl_rl_local")
-if os.path.exists(local_rsl_path):
-    sys.path.insert(0, local_rsl_path)
-    print(f"[INFO] Using local rsl_rl from: {local_rsl_path}")
-else:
-    print(f"[WARNING] Local rsl_rl not found at: {local_rsl_path}")
+# Setup rootutils to find project root and add to Python path
+root = rootutils.setup_root(
+    search_from=__file__,
+    indicator="pyproject.toml",
+    pythonpath=True,
+    cwd=True,
+)
 
-from rsl_rl.utils import wandb_fix
+# Add local rsl_rl to path (needed for internal rsl_rl module dependencies)
+sys.path.insert(0, str(root / "src" / "third_parties" / "rsl_rl_local"))
+
+
+from src.third_parties.rsl_rl_local.rsl_rl.utils import wandb_fix
 import argparse
 from isaaclab.app import AppLauncher
-import cli_args
+from scripts.rsl_rl import cli_args
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Train an RL agent with RSL-RL.")
@@ -54,7 +59,7 @@ import gymnasium as gym
 import torch
 from datetime import datetime
 
-from rsl_rl.runners import OnPolicyRunner
+from src.third_parties.rsl_rl_local.rsl_rl.runners import OnPolicyRunner
 
 from isaaclab.envs import (
     DirectMARLEnv,
@@ -96,14 +101,13 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
     # specify directory for logging experiments
-    log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
-    log_root_path = os.path.abspath(log_root_path)
+    log_root_path = root / "logs" / "rsl_rl" / agent_cfg.experiment_name
     print(f"[INFO] Logging experiment in directory: {log_root_path}")
     # specify directory for logging runs: {time-stamp}_{run_name}
     log_dir = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     if agent_cfg.run_name:
         log_dir += f"_{agent_cfg.run_name}"
-    log_dir = os.path.join(log_root_path, log_dir)
+    log_dir = log_root_path / log_dir
 
     # TODO ----- START ----- Define rewards scales
     # reward scales
@@ -135,7 +139,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # wrap for video recording
     if args_cli.video:
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "train"),
+            "video_folder": str(log_dir / "videos" / "train"),
             "step_trigger": lambda step: step % args_cli.video_interval == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
@@ -158,10 +162,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         runner.load(resume_path)
 
     # dump the configuration into log-directory
-    dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
-    dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
-    dump_pickle(os.path.join(log_dir, "params", "env.pkl"), env_cfg)
-    dump_pickle(os.path.join(log_dir, "params", "agent.pkl"), agent_cfg)
+    dump_yaml(str(log_dir / "params" / "env.yaml"), env_cfg)
+    dump_yaml(str(log_dir / "params" / "agent.yaml"), agent_cfg)
+    dump_pickle(str(log_dir / "params" / "env.pkl"), env_cfg)
+    dump_pickle(str(log_dir / "params" / "agent.pkl"), agent_cfg)
 
     # run training
     runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
