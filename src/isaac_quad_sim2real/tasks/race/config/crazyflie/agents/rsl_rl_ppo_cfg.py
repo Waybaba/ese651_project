@@ -16,6 +16,13 @@ class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     experiment_name = "quadcopter_direct"
     empirical_normalization = False
     wandb_project = "ese651_quadcopter"  # Wandb project name for logging
+    
+    # Observation groups configuration for RSL-RL
+    obs_groups = {
+        "policy": ["policy"],  # Policy network uses "policy" observation group
+        "critic": ["policy"],  # Critic network also uses "policy" observation group
+    }
+    
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_hidden_dims=[128, 128],

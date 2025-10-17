@@ -18,11 +18,11 @@ root = rootutils.setup_root(
     cwd=True,
 )
 
-# Add local rsl_rl to path (needed for internal rsl_rl module dependencies)
-sys.path.insert(0, str(root / "src" / "third_parties" / "rsl_rl_local"))
+# Use official RSL-RL installation
 
 
 import argparse
+import os
 
 from isaaclab.app import AppLauncher
 
@@ -58,7 +58,7 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import torch
 
-from src.third_parties.rsl_rl_local.rsl_rl.runners import OnPolicyRunner
+from rsl_rl.runners import OnPolicyRunner
 
 from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from isaaclab.utils.dict import print_dict
