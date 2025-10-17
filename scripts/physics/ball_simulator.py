@@ -75,37 +75,49 @@ class PhysicsEngine:
                 vel[1] = -vel[1] * RESTITUTION
 
             # Rolling vs sliding condition
-            # For rolling: angular_vel should be -vel[0] / BALL_RADIUS
+            # For rolling without slipping: v = ω * r
+            # In our coordinate system: v_x = -ω * r (negative because positive ω is counter-clockwise)
             expected_angular_vel = -vel[0] / BALL_RADIUS
-            rolling_condition = abs(angular_vel - expected_angular_vel) < 0.1
             
-            if not rolling_condition:
-                # Ball is sliding - friction affects both linear and angular motion
+            # Check if ball is rolling or sliding
+            angular_vel_diff = abs(angular_vel - expected_angular_vel)
+            is_rolling = angular_vel_diff < 0.1 and abs(vel[0]) > 0.01
+            
+            if is_rolling:
+                # Ball is rolling without slipping
+                # Rolling friction is much smaller than sliding friction
+                rolling_friction_coeff = FRICTION_COEFF * 0.1  # Much smaller friction
+                friction_magnitude = rolling_friction_coeff * abs(normal_force[1])
+                friction_force = np.array([
+                    -friction_magnitude * np.sign(vel[0]), 0
+                ])
+                # Small rolling resistance torque
+                torque = -friction_force[0] * BALL_RADIUS
+            else:
+                # Ball is sliding or stationary
                 if abs(vel[0]) > 0.01:
-                    # Kinetic friction
+                    # Kinetic friction (sliding)
                     friction_magnitude = FRICTION_COEFF * abs(normal_force[1])
                     friction_force = np.array([
                         -friction_magnitude * np.sign(vel[0]), 0
                     ])
-                    # Torque from friction (opposes sliding)
-                    # If ball moves right (vel[0] > 0), friction should create clockwise torque
-                    torque = -friction_force[0] * BALL_RADIUS
+                    # Torque from friction that tries to make ball roll
+                    # If ball slides right (vel[0] > 0), friction creates counter-clockwise torque
+                    torque = friction_force[0] * BALL_RADIUS
                 else:
-                    # Static friction - no sliding
-                    friction_force = np.array([0, 0])
-                    # Rolling friction
-                    if abs(angular_vel) > 0.01:
-                        rolling_torque = (-FRICTION_COEFF * abs(normal_force[1]) *
-                                           BALL_RADIUS * np.sign(angular_vel))
-                        torque = rolling_torque
-            else:
-                # Ball is rolling - maintain rolling condition
-                friction_force = np.array([0, 0])
-                # Adjust angular velocity to maintain rolling
-                # For rolling: angular velocity should be opposite to linear velocity
-                # (clockwise rotation for forward motion in our coordinate system)
-                angular_vel = -vel[0] / BALL_RADIUS
-                torque = 0.0
+                    # Static friction - check if applied force exceeds static friction limit
+                    static_friction_limit = FRICTION_COEFF * abs(normal_force[1])
+                    if abs(force[0]) <= static_friction_limit:
+                        # Static friction prevents motion
+                        friction_force = -force  # Friction exactly opposes applied force
+                        torque = 0.0
+                    else:
+                        # Applied force exceeds static friction - ball starts sliding
+                        friction_magnitude = FRICTION_COEFF * abs(normal_force[1])
+                        friction_force = np.array([
+                            -friction_magnitude * np.sign(force[0]), 0
+                        ])
+                        torque = friction_force[0] * BALL_RADIUS
 
             # Total force when in contact
             total_force = (force + gravity_force + normal_force +
@@ -389,10 +401,26 @@ class Game:
         impulse_text = self.small_font.render(
             f"Active impulses: {len(self.force_impulses)}",
             True, BLACK)
-        self.screen.blit(pos_text, (10, SCREEN_HEIGHT - 110))
-        self.screen.blit(vel_text, (10, SCREEN_HEIGHT - 85))
-        self.screen.blit(angular_text, (10, SCREEN_HEIGHT - 60))
-        self.screen.blit(rotation_text, (10, SCREEN_HEIGHT - 35))
+        
+        # Add friction state info
+        ground_y_meters = GROUND_Y / PIXELS_PER_METER
+        if self.ball.pos[1] <= ground_y_meters + BALL_RADIUS:
+            expected_angular_vel = -self.ball.vel[0] / BALL_RADIUS
+            angular_vel_diff = abs(self.ball.angular_vel - expected_angular_vel)
+            is_rolling = angular_vel_diff < 0.1 and abs(self.ball.vel[0]) > 0.01
+            friction_state = "Rolling" if is_rolling else "Sliding"
+        else:
+            friction_state = "In Air"
+        
+        friction_text = self.small_font.render(
+            f"State: {friction_state}",
+            True, BLACK)
+        
+        self.screen.blit(pos_text, (10, SCREEN_HEIGHT - 135))
+        self.screen.blit(vel_text, (10, SCREEN_HEIGHT - 110))
+        self.screen.blit(angular_text, (10, SCREEN_HEIGHT - 85))
+        self.screen.blit(rotation_text, (10, SCREEN_HEIGHT - 60))
+        self.screen.blit(friction_text, (10, SCREEN_HEIGHT - 35))
         self.screen.blit(impulse_text, (10, SCREEN_HEIGHT - 10))
 
     def reset_game(self):
