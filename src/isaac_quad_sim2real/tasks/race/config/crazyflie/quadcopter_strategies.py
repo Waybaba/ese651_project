@@ -76,7 +76,10 @@ class DefaultQuadcopterStrategy:
         dist_to_gate = torch.linalg.norm(self.env._pose_drone_wrt_gate, dim=1)
         gate_passed = dist_to_gate < 0.1
         ids_gate_passed = torch.where(gate_passed)[0]
+        
+        # update gate index and count gates passed
         self.env._idx_wp[ids_gate_passed] = (self.env._idx_wp[ids_gate_passed] + 1) % self.env._waypoints.shape[0]
+        self.env._n_gates_passed[ids_gate_passed] += 1
 
         # set desired positions in the world frame
         self.env._desired_pos_w[ids_gate_passed, :2] = self.env._waypoints[self.env._idx_wp[ids_gate_passed], :2]
@@ -86,6 +89,9 @@ class DefaultQuadcopterStrategy:
         distance_to_goal = torch.linalg.norm(self.env._desired_pos_w - self.env._robot.data.root_link_pos_w, dim=1)
         distance_to_goal = torch.tanh(distance_to_goal/3.0)
         progress = 1 - distance_to_goal  # distance_to_goal is between 0 and 1 where 0 means the drone reached the goal
+        
+        # calculate global progress: normal progress + number of gates passed
+        progress_global = progress + self.env._n_gates_passed.float()
 
         # compute crashed environments if contact detected for 100 timesteps
         contact_forces = self.env._contact_sensor.data.net_forces_w
@@ -97,7 +103,8 @@ class DefaultQuadcopterStrategy:
         if self.cfg.is_train:
             # TODO ----- START ----- Compute per-timestep rewards by multiplying with your reward scales (in train_race.py)
             rewards = {
-                "progress_goal": progress * self.env.rew['progress_goal_reward_scale'],
+                # "progress_goal": progress * self.env.rew['progress_goal_reward_scale'],
+                "progress_global": progress_global * self.env.rew['progress_goal_reward_scale'],
                 "crash": crashed * self.env.rew['crash_reward_scale'],
             }
             reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
