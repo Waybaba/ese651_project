@@ -41,6 +41,9 @@ class DefaultQuadcopterStrategy:
                 key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
                 for key in keys
             }
+        
+        # Initialize previous progress for reward calculation
+        self._prev_progress_global = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
 
         # Initialize fixed parameters once (no domain randomization)
         # These parameters remain constant throughout the simulation
@@ -92,6 +95,10 @@ class DefaultQuadcopterStrategy:
         
         # calculate global progress: normal progress + number of gates passed
         progress_global = progress + self.env._n_gates_passed.float()
+        
+        # calculate progress difference for reward
+        progress_diff = progress_global - self._prev_progress_global
+        self._prev_progress_global = progress_global.clone()
 
         # compute crashed environments if contact detected for 100 timesteps
         contact_forces = self.env._contact_sensor.data.net_forces_w
@@ -104,7 +111,7 @@ class DefaultQuadcopterStrategy:
             # TODO ----- START ----- Compute per-timestep rewards by multiplying with your reward scales (in train_race.py)
             rewards = {
                 # "progress_goal": progress * self.env.rew['progress_goal_reward_scale'],
-                "progress_global": progress_global * self.env.rew['progress_goal_reward_scale'],
+                "progress_goal": progress_diff * self.env.rew['progress_goal_reward_scale'],
                 "crash": crashed * self.env.rew['crash_reward_scale'],
             }
             reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
@@ -312,6 +319,9 @@ class DefaultQuadcopterStrategy:
             self.env._desired_pos_w[env_ids, :2] - self.env._robot.data.root_link_pos_w[env_ids, :2], dim=1
         )
         self.env._n_gates_passed[env_ids] = 0
+        
+        # Reset previous progress for reward calculation
+        self._prev_progress_global[env_ids] = 0.0
 
         # Write state to simulation
         self.env._robot.write_root_link_pose_to_sim(default_root_state[:, :7], env_ids)
