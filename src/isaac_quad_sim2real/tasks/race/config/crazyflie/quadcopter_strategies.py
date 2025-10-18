@@ -286,7 +286,8 @@ class DefaultQuadcopterStrategy:
         # TODO ----- END -----
 
         # Handle play mode initial position
-        if not self.cfg.is_train:
+        # if not self.cfg.is_train:
+        if True: # ! the course default code does not randomize the initial position for training
             # x_local and y_local are randomly sampled
             x_local = torch.empty(1, device=self.device).uniform_(-3.0, -0.5)
             y_local = torch.empty(1, device=self.device).uniform_(-1.0, 1.0)
