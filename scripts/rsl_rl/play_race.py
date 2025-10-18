@@ -147,6 +147,10 @@ def main():
     # reset environment
     obs = env.get_observations()
     timestep = 0
+    
+    print("[INFO] Starting simulation with real-time reward monitoring...")
+    print("[INFO] Press Ctrl+C to stop")
+    
     # simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
@@ -155,8 +159,39 @@ def main():
             actions = policy(obs)
             # env stepping
             obs, rewards, dones, infos = env.step(actions)
+            
+            # Print progress information every 10 steps
+            if timestep % 10 == 0:
+                # Get progress_diff from environment (calculated in quadcopter_strategies.py)
+                if hasattr(env.unwrapped, '_current_progress_diff'):
+                    progress_diff = env.unwrapped._current_progress_diff[0].item()
+                    
+                    # Calculate current progress values for display
+                    if hasattr(env.unwrapped, '_robot') and hasattr(env.unwrapped, '_desired_pos_w'):
+                        # Calculate progress (distance to current gate)
+                        drone_pos = env.unwrapped._robot.data.root_link_pos_w[0]
+                        desired_pos = env.unwrapped._desired_pos_w[0]
+                        distance_to_goal = torch.linalg.norm(desired_pos - drone_pos).item()
+                        distance_to_goal = torch.tanh(torch.tensor(distance_to_goal/3.0)).item()
+                        progress = 1 - distance_to_goal
+                        
+                        # Calculate global progress
+                        gates_passed = env.unwrapped._n_gates_passed[0].item()
+                        progress_global = progress + gates_passed
+                        
+                        # Debug info
+                        prev_progress = env.unwrapped.strategy._prev_progress_global[0].item() if hasattr(env.unwrapped, 'strategy') else 0.0
+                        
+                        # Check if gate was passed
+                        dist_to_gate = env.unwrapped._pose_drone_wrt_gate[0].norm().item() if hasattr(env.unwrapped, '_pose_drone_wrt_gate') else 999.0
+                        gate_passed = dist_to_gate < 0.1
+                        
+                        print(f"[Step {timestep}] Progress: {progress:.4f}, Global Progress: {progress_global:.4f}, Progress Diff: {progress_diff:.4f}")
+                        print(f"  Debug: Prev Progress: {prev_progress:.4f}, Gates Passed: {gates_passed}, Dist to Gate: {dist_to_gate:.4f}, Gate Passed: {gate_passed}")
+        
+        timestep += 1
+        
         if args_cli.video:
-            timestep += 1
             # Exit the play loop after recording one video
             if timestep == args_cli.video_length:
                 break

@@ -37,6 +37,8 @@ class DefaultQuadcopterStrategy:
         # Initialize episode sums for logging if in training mode
         if self.cfg.is_train and hasattr(env, 'rew'):
             keys = [key.split("_reward_scale")[0] for key in env.rew.keys() if key != "death_cost"]
+            # Add additional reward components that are not in env.rew
+            keys.extend(['gate_passed'])  # Add gate_passed reward component
             self._episode_sums = {
                 key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
                 for key in keys
@@ -96,9 +98,12 @@ class DefaultQuadcopterStrategy:
         # calculate global progress: normal progress + number of gates passed
         progress_global = progress + self.env._n_gates_passed.float()
         
-        # calculate progress difference for reward
+        # calculate progress difference for reward (always calculate, used in both train and test)
         progress_diff = progress_global - self._prev_progress_global
         self._prev_progress_global = progress_global.clone()
+        
+        # Store progress_diff for external access (e.g., in play_race.py)
+        self.env._current_progress_diff = progress_diff
 
         # compute crashed environments if contact detected for 100 timesteps
         contact_forces = self.env._contact_sensor.data.net_forces_w
@@ -109,9 +114,14 @@ class DefaultQuadcopterStrategy:
 
         if self.cfg.is_train:
             # TODO ----- START ----- Compute per-timestep rewards by multiplying with your reward scales (in train_race.py)
+            
+            # Add gate passing reward
+            gate_passed_reward = gate_passed.float() * 1.0  # 通过门获得额外奖励
+            
             rewards = {
                 # "progress_goal": progress * self.env.rew['progress_goal_reward_scale'],
                 "progress_goal": progress_diff * self.env.rew['progress_goal_reward_scale'],
+                "gate_passed": gate_passed_reward,
                 "crash": crashed * self.env.rew['crash_reward_scale'],
             }
             reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
