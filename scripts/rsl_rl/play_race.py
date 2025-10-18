@@ -115,7 +115,7 @@ def main():
     # wrap for video recording
     if args_cli.video:
         video_kwargs = {
-            "video_folder": str(log_dir / "videos" / "play"),
+            "video_folder": os.path.join(log_dir, "videos", "play"),
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
@@ -136,19 +136,16 @@ def main():
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
 
     # export policy to onnx/jit
-    export_model_dir = log_dir / "exported"
+    export_model_dir = os.path.join(log_dir, "exported")
     export_policy_as_jit(
-        ppo_runner.alg.actor_critic, ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.pt"
+        ppo_runner.alg.policy, None, path=export_model_dir, filename="policy.pt"
     )
     export_policy_as_onnx(
-        ppo_runner.alg.actor_critic, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
+        ppo_runner.alg.policy, path=export_model_dir, normalizer=None, filename="policy.onnx"
     )
 
     # reset environment
     obs = env.get_observations()
-    # Extract tensor from TensorDict for policy
-    if hasattr(obs, "get"):  # Check if it's a TensorDict
-        obs = obs["policy"]  # Extract the policy observation
     timestep = 0
     # simulate environment
     while simulation_app.is_running():
@@ -158,9 +155,6 @@ def main():
             actions = policy(obs)
             # env stepping
             obs, rewards, dones, infos = env.step(actions)
-            # Extract tensor from TensorDict for policy
-            if hasattr(obs, "get"):  # Check if it's a TensorDict
-                obs = obs["policy"]  # Extract the policy observation
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video

@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Drone Racing",
+            "name": "Train Drone Racing",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/scripts/rsl_rl/train_race.py",
@@ -16,7 +16,31 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}",
                 "DISPLAY": ":1"
-            }
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Test Drone Racing",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/rsl_rl/play_race.py",
+            "args": [
+                "--task", "Isaac-Quadcopter-Race-v0",           // 任务名称，固定为无人机竞速任务
+                "--num_envs", "1",                              // 环境数量，测试时通常用1个环境
+                "--follow_robot", "0",                          // 跟随第0个无人机的视角，-1为固定视角
+                "--load_run", "2025-10-17_21-06-03",        // 指定要加载的训练运行目录（可选）
+                "--checkpoint", "model_100.pt",             // 指定要加载的模型文件（可选）
+                // "--video",                                  // 启用视频录制（可选）
+                // "--video_length", "2000",                   // 录制视频长度（步数）（可选）
+                // "--seed", "42"                              // 随机种子，用于复现结果（可选）
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "DISPLAY": ":1"
+            },
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
