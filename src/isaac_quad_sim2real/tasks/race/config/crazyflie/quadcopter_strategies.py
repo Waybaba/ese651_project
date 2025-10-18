@@ -152,9 +152,23 @@ class DefaultQuadcopterStrategy:
         drone_ang_vel_b = self.env._robot.data.root_ang_vel_b  # [roll_rate, pitch_rate, yaw_rate]
 
         # Current target gate information
-        # current_gate_idx = self.env._idx_wp
+        # why so that we know where we are in the map and other frame to be applied to the drone?
+        current_gate_idx = self.env._idx_wp
+        # make it one-hot for each environment
+        one_hot_gate_idx = torch.zeros(self.num_envs, self.env._waypoints.shape[0], dtype=torch.float32, device=self.device)
+        one_hot_gate_idx[torch.arange(self.num_envs), current_gate_idx] = 1.0
+
         # current_gate_pos_w = self.env._waypoints[current_gate_idx, :3]  # World position of current gate
-        # current_gate_yaw = self.env._waypoints[current_gate_idx, -1]    # Yaw orientation of current gate
+        current_gate_yaw = self.env._waypoints[current_gate_idx, -1].unsqueeze(-1)    # Yaw orientation of current gate (num_envs, 1)
+        
+        # Next gate information for planning ahead
+        next_gate_idx = (current_gate_idx + 1) % self.env._waypoints.shape[0]
+        next_gate_pos_w = self.env._waypoints[next_gate_idx, :3]  # World position of next gate
+        next_gate_yaw = self.env._waypoints[next_gate_idx, -1].unsqueeze(-1)    # Yaw orientation of next gate (num_envs, 1)
+        
+        # Relative position to next gate in world frame
+        drone_pos_w = self.env._robot.data.root_link_pos_w
+        drone_pos_next_gate_w = next_gate_pos_w - drone_pos_w  # Vector from drone to next gate
 
         # Relative position to current gate in gate frame
         drone_pos_gate_frame = self.env._pose_drone_wrt_gate
@@ -167,7 +181,7 @@ class DefaultQuadcopterStrategy:
         # )
 
         # Previous actions
-        # prev_actions = self.env._previous_actions  # Shape: (num_envs, 4)
+        prev_actions = self.env._previous_actions  # Shape: (num_envs, 4)
 
         # Number of gates passed
         # gates_passed = self.env._n_gates_passed.unsqueeze(1).float()
@@ -177,11 +191,20 @@ class DefaultQuadcopterStrategy:
         obs = torch.cat(
             # TODO ----- START ----- List your observation tensors here to be concatenated together
             [
+                ### Basic drone states ###
                 drone_ang_vel_b,    # angular velocity in the body frame (3 dims)
                 drone_pose_w,       # position in the world frame (3 dims)
                 drone_lin_vel_b,    # velocity in the body frame (3 dims)
                 drone_quat_w,       # quaternion in the world frame (4 dims)
-                drone_pos_gate_frame
+                ### for gate
+                drone_pos_gate_frame,   # relative position to current gate in gate frame (3 dims)
+                current_gate_yaw,      # yaw orientation of current gate (1 dim)
+                one_hot_gate_idx,    # one-hot encoded index of current gate (6 dims)
+                ### for next gate planning ###
+                drone_pos_next_gate_w,  # relative position to next gate in world frame (3 dims)
+                next_gate_yaw,         # yaw orientation of next gate (1 dim)
+                ### for dynamics adaptation ###
+                # prev_actions,       # previous actions (4 dims)
             ],
             # TODO ----- END -----
             dim=-1,
