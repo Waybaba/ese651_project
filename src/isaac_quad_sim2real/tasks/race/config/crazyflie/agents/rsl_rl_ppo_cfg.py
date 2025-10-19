@@ -12,7 +12,7 @@ from .rl_cfg import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgo
 class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 200
-    save_interval = 50
+    save_interval = 500
     experiment_name = "quadcopter_direct"
     empirical_normalization = False
     wandb_project = "ese651_quadcopter"  # Wandb project name for logging
@@ -34,13 +34,13 @@ class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.0,
-        num_learning_epochs=5,
+        entropy_coef=0.01,              # ⚠️ 标准默认: 0.01, 原代码库: 0.0
+        num_learning_epochs=5,         # ⚠️ 标准默认: 4, 原代码库: 5
         num_mini_batches=4,
-        learning_rate=5.0e-4,
+        learning_rate=5.0e-4,          # ⚠️ 标准默认: 3e-4, 原代码库: 5.0e-4
         schedule="adaptive",
-        gamma=0.99,
+        gamma=0.999,                   # ⚠️ 标准默认: 0.99, 原代码库: 0.999
         lam=0.95,
         desired_kl=0.01,
-        max_grad_norm=1.0,
+        max_grad_norm=1.0,             # ⚠️ 标准默认: 0.5, 原代码库: 1.0
     )
