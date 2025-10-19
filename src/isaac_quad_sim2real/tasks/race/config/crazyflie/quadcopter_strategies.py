@@ -39,6 +39,8 @@ class DefaultQuadcopterStrategy:
             keys = [key.split("_reward_scale")[0] for key in env.rew.keys() if key != "death_cost"]
             # Add additional reward components that are not in env.rew
             keys.extend(['gate_passed'])  # Add gate_passed reward component
+            # Add time reward component
+            keys.extend(['time'])
             self._episode_sums = {
                 key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
                 for key in keys
@@ -115,14 +117,12 @@ class DefaultQuadcopterStrategy:
         if self.cfg.is_train:
             # TODO ----- START ----- Compute per-timestep rewards by multiplying with your reward scales (in train_race.py)
             
-            # Add gate passing reward
-            gate_passed_reward = gate_passed.float() * 1.0  # 通过门获得额外奖励
-            
             rewards = {
                 # "progress_goal": progress * self.env.rew['progress_goal_reward_scale'],
                 "progress_goal": progress_diff * self.env.rew['progress_goal_reward_scale'],
-                "gate_passed": gate_passed_reward,
+                "gate_passed": gate_passed.float() * self.env.rew['gate_passed_reward_scale'],  # 通过门获得额外奖励
                 "crash": crashed * self.env.rew['crash_reward_scale'],
+                "time": torch.ones(self.num_envs, device=self.device) * self.env.rew['time_reward_scale'],  # -0.01 per timestep
             }
             reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
             reward = torch.where(self.env.reset_terminated,
