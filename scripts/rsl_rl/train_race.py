@@ -32,6 +32,11 @@ parser.add_argument("--num_envs", type=int, default=None, help="Number of enviro
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--max_iterations", type=int, default=None, help="RL Policy training iterations.")
+# Reward tuning arguments
+parser.add_argument("--gamma", type=float, default=None, help="Discount factor for reward tuning.")
+parser.add_argument("--gate_passed_reward_scale", type=float, default=None, help="Gate passed reward scale for tuning.")
+parser.add_argument("--time_reward_scale", type=float, default=None, help="Time reward scale for tuning.")
+parser.add_argument("--progress_goal_reward_scale", type=float, default=None, help="Progress goal reward scale for tuning.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -90,6 +95,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     agent_cfg.max_iterations = (
         args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations
     )
+    
+    # Override gamma if provided via command line
+    if args_cli.gamma is not None:
+        agent_cfg.algorithm.gamma = args_cli.gamma
 
     # set the environment seed
     # note: certain randomizations occur in the environment initialization so we set the seed here
@@ -106,12 +115,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     log_dir = log_root_path / log_dir
 
     # TODO ----- START ----- Define rewards scales
-    # reward scales
-    progress_goal_reward_scale = 1.0
+    # reward scales (can be overridden by command line arguments)
+    progress_goal_reward_scale = args_cli.progress_goal_reward_scale if args_cli.progress_goal_reward_scale is not None else 1.0
     crash_reward_scale = 0.
     death_cost = -100.0
-    time_reward_scale = -0.01  # 时间惩罚reward，每步-0.01
-    gate_passed_reward_scale = 1.0  # 通过门的奖励scale
+    time_reward_scale = args_cli.time_reward_scale if args_cli.time_reward_scale is not None else -0.01  # 时间惩罚reward，每步-0.01
+    gate_passed_reward_scale = args_cli.gate_passed_reward_scale if args_cli.gate_passed_reward_scale is not None else 1.0  # 通过门的奖励scale
 
     rewards = {
         'progress_goal_reward_scale': progress_goal_reward_scale,
